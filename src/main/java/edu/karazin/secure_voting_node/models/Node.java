@@ -1,7 +1,6 @@
 package edu.karazin.secure_voting_node.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -27,6 +26,9 @@ public class Node {
     @UpdateTimestamp
     @Column(name = "last_update")
     private LocalDateTime lastUpdate;
+
+    @Column()
+    private boolean active;
 
     public Node(String ip, int port, LocalDateTime lastUpdate) {
         this.ip = ip;
