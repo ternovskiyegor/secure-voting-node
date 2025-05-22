@@ -23,14 +23,26 @@ public class BallotService {
             return;
         }
 
+        if (!isValid(request)) {
+            log.warn("Invalid ballot format or signature");
+            throw new IllegalArgumentException("Invalid ballot or signature");
+        }
+
         Ballot ballot = new Ballot();
         ballot.setVoterId(request.getId());
         ballot.setEncryptedVote(request.getVote());
-        ballot.setSignature(ballot.getSignature());
+        ballot.setSignature(request.getSignature());
         ballot.setCreatedAt(LocalDateTime.now());
 
         ballotRepository.save(ballot);
         log.info("Ballot saved from voterId={}", request.getId());
+    }
+
+    private boolean isValid(BallotRequest request) {
+        // TODO : Real checking of signature
+        return request.getId() != null &&
+                request.getVote() != null &&
+                request.getSignature() != null;
     }
 
     public List<Ballot> getAllBallots() {
