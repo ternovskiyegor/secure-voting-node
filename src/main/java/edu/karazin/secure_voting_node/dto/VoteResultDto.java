@@ -8,5 +8,5 @@ import java.util.Map;
 @Data
 @AllArgsConstructor
 public class VoteResultDto {
-    private Map<String, Integer> results;
+    private Map<String, Long> results;
 }
