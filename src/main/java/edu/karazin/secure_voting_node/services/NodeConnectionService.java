@@ -1,6 +1,7 @@
 package edu.karazin.secure_voting_node.services;
 
 import edu.karazin.secure_voting_node.dto.NodeAddressDto;
+import edu.karazin.secure_voting_node.dto.NodeMessageWrapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,11 +27,15 @@ public class NodeConnectionService {
 
     @PostConstruct
     public void initializeConnections() {
-        List<NodeAddressDto> nodes = nodeService.getAllNodes();
+        try {
+            List<NodeAddressDto> nodes = nodeService.getAllNodes();
 
-        nodes.stream()
-                .limit(connectionLimit)
-                .forEach(this::connectToNode);
+            nodes.stream()
+                    .limit(connectionLimit)
+                    .forEach(this::connectToNode);
+        } catch (Exception e) {
+            log.error("Error during initial node connection setup: {}", e.getMessage());
+        }
     }
 
     public void connectToNode(NodeAddressDto nodeDto) {
@@ -78,6 +83,19 @@ public class NodeConnectionService {
 
     public Collection<WebClient> getActiveConnections() {
         return activeConnections.values();
+    }
+
+    public void broadcastToNode(NodeMessageWrapper messageWrapper) {
+        activeConnections.forEach((url, client) -> {
+            client.post()
+                    .uri("/api/node/message")
+                    .bodyValue(messageWrapper)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .doOnSuccess(resp -> log.info("Successfully sent message to {}", url))
+                    .doOnError(err -> log.warn("Failed to send message to {} : {}", url, err.getMessage()))
+                    .subscribe();
+        });
     }
 
 }

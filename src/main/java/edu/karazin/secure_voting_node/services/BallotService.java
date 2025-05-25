@@ -1,6 +1,8 @@
 package edu.karazin.secure_voting_node.services;
 
 import edu.karazin.secure_voting_node.dto.BallotRequest;
+import edu.karazin.secure_voting_node.dto.NodeMessageType;
+import edu.karazin.secure_voting_node.dto.NodeMessageWrapper;
 import edu.karazin.secure_voting_node.dto.VoteResultDto;
 import edu.karazin.secure_voting_node.models.Ballot;
 import edu.karazin.secure_voting_node.repositories.BallotRepository;
@@ -9,10 +11,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.PublicKey;
 import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,6 +28,7 @@ public class BallotService {
 
     private final BallotRepository ballotRepository;
     private final CryptoKeyService cryptoKeyService;
+    private final NodeConnectionService nodeConnectionService;
 
     public void processBallot(BallotRequest request) {
         if (ballotRepository.existsByVoterId(request.getId())) {
@@ -44,31 +49,36 @@ public class BallotService {
 
         ballotRepository.save(ballot);
         log.info("Ballot saved from voterId={}", request.getId());
+
+        NodeMessageWrapper messageWrapper = new NodeMessageWrapper();
+        messageWrapper.setType(NodeMessageType.BALLOT);
+        messageWrapper.setBallot(request);
+        nodeConnectionService.broadcastToNode(messageWrapper);
     }
 
     private boolean isValid(BallotRequest request) {
         try {
-            Signature signature = Signature.getInstance("SHA256withRSA");
-            signature.initVerify(cryptoKeyService.getPublicKey());
-            signature.update(request.getVote().getBytes(StandardCharsets.UTF_8));
-            byte [] sigBytes = Base64.getDecoder().decode(request.getSignature());
-            return signature.verify(sigBytes);
+            byte[] publicKeyBytes = Base64.getDecoder().decode(request.getPublicKey());
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(publicKeyBytes);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            PublicKey publicKey = keyFactory.generatePublic(keySpec);
+
+            byte[] signatureBytes = Base64.getDecoder().decode(request.getSignature());
+
+            Signature sig = Signature.getInstance("SHA256withRSA");
+            sig.initVerify(publicKey);
+            sig.update(request.getVote().getBytes(StandardCharsets.UTF_8));
+
+            return sig.verify(signatureBytes);
         } catch (Exception e) {
-            log.error("Signature verification failed", e);
+            e.printStackTrace();
             return false;
         }
     }
 
     public VoteResultDto getResults() {
         Map<String, Long> ballots = ballotRepository.findAll().stream()
-                .map(ballot -> {
-                    try {
-                        return cryptoKeyService.decrypt(ballot.getEncryptedVote());
-                    } catch (Exception e) {
-                        log.error("Failed to decrypt vote from: {}", ballot.getVoterId(), e);
-                        return "invalid";
-                    }
-                })
+                .map(Ballot::getEncryptedVote)
                 .filter(v -> !v.equals("invalid"))
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
         return new VoteResultDto(ballots);

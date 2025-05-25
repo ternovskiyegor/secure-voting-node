@@ -24,10 +24,10 @@ public class Node {
     private int port;
 
     @UpdateTimestamp
-    @Column(name = "last_update")
+    @Column(name = "last_updated")
     private LocalDateTime lastUpdate;
 
-    @Column()
+    @Column(name = "active")
     private boolean active;
 
     public Node(String ip, int port, LocalDateTime lastUpdate) {

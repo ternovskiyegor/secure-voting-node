@@ -26,7 +26,7 @@ public class CryptoKeyService {
     public String decrypt(String encryptedData) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA");
         cipher.init(Cipher.DECRYPT_MODE, keyPair.getPrivate());
-        byte [] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
+        byte [] decryptedBytes = cipher.doFinal(Base64.getUrlDecoder().decode(encryptedData));
         return new String(decryptedBytes, StandardCharsets.UTF_8);
     }
 

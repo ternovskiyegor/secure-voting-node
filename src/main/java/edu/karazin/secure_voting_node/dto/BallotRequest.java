@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class BallotRequest {
     private String id;
-    private String vote;        //encrypted value
-    private String signature;   // customer's signature
+    private String vote;
+    private String signature;
+    private String publicKey;
 }
